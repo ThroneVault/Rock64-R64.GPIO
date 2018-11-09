@@ -3,7 +3,7 @@
 # Allison Creely, 2018, LGPLv3 License
 # Edited: Matei Ciobotaru 2018-05-14
 # Rock 64 GPIO Library for Python
-
+# Updated by MrFixIt2001 - 2018, LGPLv3 License
 # Import modules
 import os.path
 from multiprocessing import Process, Value
@@ -29,16 +29,16 @@ VERSION = '0.6.3'
 RPI_INFO = {'P1_REVISION': 3, 'RAM': '1024M', 'REVISION': 'a22082', 'TYPE': 'Pi 3 Model B', 'PROCESSOR': 'BCM2837', 'MANUFACTURER': 'Embest'}
 
 # Define GPIO arrays
+ROCK64_valid_channels = [27, 32, 33, 34, 35, 36, 37, 38, 60, 64, 65, 67, 68, 69, 76, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 96, 97, 98, 100, 101, 102, 103, 104]
+BOARD_to_ROCK64 = [0, 0, 0, 89, 0, 88, 0, 60, 64, 0, 65, 0, 67, 0, 0, 100, 101, 0, 102, 97, 0, 98, 103, 96, 104, 0, 76, 68, 69, 0, 0, 0, 38, 32, 0, 33, 37, 34, 36, 0, 35, 0, 0, 81, 82, 87, 83, 0, 0, 80, 79, 85, 84, 27, 86, 0, 0, 0, 0, 0, 0, 89, 88]
+BCM_to_ROCK64 = [68, 69, 89, 88, 81, 87, 83, 76, 104, 98, 97, 96, 38, 32, 64, 65, 37, 80, 67, 33, 36, 35, 100, 101, 102, 103, 34, 82]
 
-ROCK_valid_channels = [27, 32, 33, 34, 35, 36, 37, 38, 64, 65, 67, 68, 69, 76, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 96, 97, 98, 100, 101, 102, 103, 104]
-
-BOARD_to_ROCK = [0, 0, 0, 89, 0, 88, 0, 0, 64, 0, 65, 0, 67, 0, 0, 100, 101, 0, 102, 97, 0, 98, 103, 96, 104, 0, 76, 68, 69, 0, 0, 0, 38, 32, 0, 33, 37, 34, 36, 0, 35, 0, 0, 81, 82, 87, 83, 0, 0, 80, 79, 85, 84, 27, 86, 0, 0, 0, 0, 0, 0, 89, 88]
-
-BCM_to_ROCK = [68, 69, 89, 88, 81, 87, 83, 76, 104, 98, 97, 96, 38, 32, 64, 65, 37, 80, 67, 33, 36, 35, 100, 101, 102, 103, 34, 82]
-
+ROCKPRO64_valid_channels = [52,53,152,54,50,33,48,39,41,43,155,156,125,122,121,148,147,120,36,149,153,42,45,44,124,126,123,127]
+BOARD_to_ROCKPRO64 = [0,0,0,52,0,53,0,152,148,0,147,54,120,50,0,33,36,0,149,48,0,39,153,41,42,0,45,43,44,155,0,156,124,125,0,122,126,121,123,0,127]
+BCM_to_ROCKPRO64 = [43,44,52,53,152,155,156,45,42,39,48,41,124,125,148,147,124,54,120,122,123,127,33,36,149,153,121,50]
 
 # From kernel version 4.4.103 up, the GPIO pins have an offset of 1000
-# Edit values on below 2 lines in case the GPIO channel 
+# Edit values on below 2 lines in case the GPIO channel
 # offset value changes with newer kernel versions.
 
 KverOffset = '4.4.103'
@@ -59,11 +59,11 @@ def offset(kverOffset, valueOffset):
 
             global ROCK_Channel_Offset
             ROCK_Channel_Offset = value
-            global ROCK_valid_channels 
+            global ROCK_valid_channels
             ROCK_valid_channels = [ channel + value for channel in ROCK_valid_channels ]
-            global BOARD_to_ROCK 
+            global BOARD_to_ROCK
             BOARD_to_ROCK = [ channel + value for channel in BOARD_to_ROCK ]
-            global BCM_to_ROCK 
+            global BCM_to_ROCK
             BCM_to_ROCK = [ channel + value for channel in BCM_to_ROCK ]
         else:
             pass
@@ -88,6 +88,14 @@ def setmode(mode):
     else:
         print("An invalid mode ({}) was passed to setmode(). Use one of the following: ROCK, BOARD, BCM").format(mode)
 
+def setrock(rock):
+    # This tells the script if it's running for ROCK64 or ROCKPRO64, it auto-defaults to ROCK64 if this is not called
+    if rock in ['ROCK64','ROCKPRO64']:
+        global rock_mode
+        rock_mode = rock
+    else:
+        print("An invalid rock-mode ({}) was passed to setrock(). Use one of the following: ROCK64, ROCKPRO64").format(mode)
+
 def getmode():
     if gpio_mode in ['ROCK','BOARD','BCM']:
         return gpio_mode
@@ -98,14 +106,24 @@ def get_gpio_number(channel):
     if gpio_mode in ['ROCK','BOARD','BCM']:
         # Convert to ROCK GPIO
         if gpio_mode == BOARD:
-            channel_new = BOARD_to_ROCK[channel]
+            if rock_mode == 'ROCK64':
+                channel_new = BOARD_to_ROCK64[channel]
+            if rock_mode == 'ROCKPRO64':
+                channel_new = BOARD_to_ROCKPRO64[channel]
         if gpio_mode == BCM:
-            channel_new = BCM_to_ROCK[channel]
+            if rock_mode == 'ROCK64':
+                channel_new = BCM_to_ROCK64[channel]
+            if rock_mode == 'ROCKPRO64':
+                channel_new = BCM_to_ROCKPRO64[channel]
         if gpio_mode == ROCK:
-            channel_new = channel + ROCK_Channel_Offset
+            channel_new = channel
         # Check that the GPIO is valid
-        if channel_new in ROCK_valid_channels:
-            return channel_new
+        if rock_mode == 'ROCK64':
+            if channel_new in ROCK64_valid_channels:
+                return channel_new
+        elif rock_mode == 'ROCKPRO64':
+            if channel_new in ROCKPRO64_valid_channels:
+                return channel_new
         else:
             print("Error: GPIO not supported on {0} {1}").format(gpio_mode, channel)
             return None
